@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISD2 Dashboard — Michael Rice</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0f1117;--bg2:#181c25;--bg3:#1e2330;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --text:#e8eaf0;--text2:#9098b0;--text3:#5a6278;
+  --blue:#378ADD;--blue-dim:#1a3a5c;
+  --green:#7ec94a;--amber:#f0a830;--red:#e55a4e;--purple:#7F77DD;--teal:#1D9E75;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;}
+.logo{font-size:13px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);}
+.logo span{color:var(--blue);}
+.topbar-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 8px;margin-left:12px;}
+.topbar-right{display:flex;align-items:center;gap:12px;}
+.ts-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--text3);}
+.btn{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text2);background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 14px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;}
+.btn:hover{background:var(--blue-dim);color:var(--blue);border-color:var(--blue);}
+.btn-out:hover{background:rgba(229,90,78,.15);color:var(--red);border-color:var(--red);}
+
+/* Gate */
+#token-gate{position:fixed;inset:0;background:rgba(10,12,18,.97);display:flex;align-items:center;justify-content:center;z-index:200;}
+.gate-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:2rem 2.25rem;width:100%;max-width:460px;}
+.gate-title{font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px;}
+.gate-sub{font-size:12px;color:var(--text3);line-height:1.7;margin-bottom:1.5rem;}
+.gate-sub a{color:var(--blue);text-decoration:none;}
+.gate-sub a:hover{text-decoration:underline;}
+.gate-label{font-size:11px;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+.gate-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);outline:none;margin-bottom:1rem;transition:border-color .15s;}
+.gate-input:focus{border-color:var(--blue);}
+.gate-input::placeholder{color:var(--text3);}
+.gate-remember{display:flex;align-items:center;gap:8px;margin-bottom:1rem;cursor:pointer;}
+.gate-remember input{accent-color:var(--blue);cursor:pointer;}
+.gate-remember span{font-size:12px;color:var(--text2);}
+.gate-btn{width:100%;background:var(--blue);border:none;border-radius:var(--radius-sm);padding:11px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;color:#fff;cursor:pointer;transition:opacity .15s;}
+.gate-btn:hover{opacity:.85;}
+.gate-error{font-size:12px;color:var(--red);margin-top:10px;display:none;}
+.gate-privacy{font-size:11px;color:var(--text3);margin-top:14px;line-height:1.7;padding-top:14px;border-top:1px solid var(--border);}
+
+/* Layout */
+.main{padding:1.75rem 2rem;max-width:1400px;margin:0 auto;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.5rem;}
+.met{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;}
+.met::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--border2);}
+.met.c-blue::before{background:var(--blue);}.met.c-green::before{background:var(--green);}.met.c-amber::before{background:var(--amber);}.met.c-red::before{background:var(--red);}.met.c-purple::before{background:var(--purple);}
+.ml{font-size:11px;color:var(--text3);letter-spacing:.05em;margin-bottom:6px;text-transform:uppercase;}
+.mv{font-size:32px;font-weight:500;font-family:'IBM Plex Mono',monospace;line-height:1;color:var(--text);}
+.mv.c-red{color:var(--red);}.mv.c-amber{color:var(--amber);}.mv.c-green{color:var(--green);}.mv.c-blue{color:var(--blue);}.mv.c-purple{color:var(--purple);}
+.ms{font-size:11px;color:var(--text3);margin-top:5px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:1.5rem;}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}}
+.full{grid-column:1/-1;}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.25rem;}
+.card-title{font-size:10px;font-weight:500;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.card-title span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);font-weight:400;}
+.ticket-scroll{max-height:340px;overflow-y:auto;}
+.ticket-scroll::-webkit-scrollbar{width:4px;}
+.ticket-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
+.trow{display:flex;align-items:flex-start;gap:10px;padding:8px 4px;border-bottom:1px solid var(--border);border-radius:4px;cursor:pointer;transition:background .1s;}
+.trow:last-child{border-bottom:none;}
+.trow:hover{background:var(--bg3);}
+.tkey{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);min-width:86px;padding-top:2px;flex-shrink:0;}
+.trow:hover .tkey{color:var(--blue);}
+.tsum{font-size:13px;color:var(--text);flex:1;line-height:1.4;}
+.tmeta{font-size:11px;color:var(--text3);margin-top:3px;}
+.pill{display:inline-block;font-size:10px;font-weight:500;padding:2px 7px;border-radius:99px;margin-left:5px;vertical-align:middle;}
+.p-pend{background:rgba(186,117,23,.2);color:#f0a830;}.p-prog{background:rgba(55,138,221,.2);color:#78b8f0;}
+.p-wait{background:rgba(29,158,117,.2);color:#4ecfa0;}.p-info{background:rgba(127,119,221,.2);color:#b0acf0;}
+.p-canc{background:rgba(90,98,120,.2);color:#9098b0;}.p-aged{background:rgba(192,57,43,.2);color:#e55a4e;}
+.p-inc{background:rgba(212,83,126,.15);color:#e87aaa;}.p-escl{background:rgba(229,90,78,.15);color:#e55a4e;}
+.abar{height:4px;border-radius:99px;background:var(--bg3);margin-top:5px;overflow:hidden;}
+.afill{height:100%;border-radius:99px;}
+.a-ok{background:var(--green);}.a-warn{background:var(--amber);}.a-bad{background:var(--red);}.a-crit{background:var(--purple);}
+.srow{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.srow:last-child{margin-bottom:0;}
+.slabel{font-size:12px;color:var(--text2);width:130px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.strack{flex:1;height:6px;background:var(--bg3);border-radius:99px;overflow:hidden;}
+.sfill{height:100%;border-radius:99px;}
+.scount{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text3);min-width:24px;text-align:right;}
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;}
+.rrow:last-child{border-bottom:none;}
+.rrow:hover{opacity:.8;}
+.insight{border-left:2px solid var(--blue);background:rgba(55,138,221,.06);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:10px 14px;font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:8px;}
+.insight:last-child{margin-bottom:0;}
+.insight.warn{border-left-color:var(--amber);background:rgba(186,117,23,.06);}
+.insight.danger{border-left-color:var(--red);background:rgba(192,57,43,.06);}
+.insight.ok{border-left-color:var(--green);background:rgba(59,109,17,.06);}
+.insight b{font-weight:500;color:var(--text);}
+#chart-wrap{position:relative;width:100%;height:200px;}
+.state-msg{text-align:center;padding:2rem;font-size:13px;color:var(--text3);}
+.state-msg.error{color:var(--red);}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
+.footer{text-align:center;padding:1.5rem;font-size:11px;color:var(--text3);font-family:'IBM Plex Mono',monospace;border-top:1px solid var(--border);margin-top:1rem;}
+</style>
+</head>
+<body>
+
+<div id="token-gate">
+  <div class="gate-card">
+    <div class="gate-title">ISD2 Dashboard — Sign in</div>
+    <div class="gate-sub">
+      Enter your Atlassian API token to load your live Jira queue.<br>
+      Your token goes directly to Jira — it is never stored on GitHub or sent anywhere else.<br><br>
+      Don't have a token? <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank">Create one here ↗</a>
+    </div>
+    <div class="gate-label">Atlassian API token</div>
+    <input class="gate-input" type="password" id="token-input" placeholder="Paste your API token here…" autocomplete="off">
+    <label class="gate-remember">
+      <input type="checkbox" id="remember-check" checked>
+      <span>Remember token in this browser (saved locally on this device only)</span>
+    </label>
+    <button class="gate-btn" onclick="submitToken()">Load my dashboard →</button>
+    <div class="gate-error" id="gate-error"></div>
+    <div class="gate-privacy">🔒 Token is used only to call <strong>floridapoly.atlassian.net</strong> directly. If "Remember" is checked it is saved in your browser's localStorage — only on this device, never uploaded anywhere.</div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;">
+    <div class="logo">ISD2 · <span>Michael Rice</span></div>
+    <div class="topbar-badge">floridapoly.atlassian.net</div>
+  </div>
+  <div class="topbar-right">
+    <div class="ts-label" id="ts">—</div>
+    <button class="btn" onclick="loadAll()">↻ refresh</button>
+    <button class="btn btn-out" onclick="signOut()">sign out</button>
+  </div>
+</div>
+
+<div class="main">
+  <div id="metrics-row" class="metrics">
+    <div class="state-msg" style="grid-column:1/-1"><span class="spinner"></span>Loading your queue…</div>
+  </div>
+  <div id="main-grid" class="grid" style="display:none;">
+    <div class="card">
+      <div class="card-title">Open tickets <span id="open-count-label"></span></div>
+      <div class="ticket-scroll" id="open-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Oldest open — aging alert</div>
+      <div id="aging-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Status breakdown</div>
+      <div id="status-list"></div>
+      <div class="divider"></div>
+      <div class="card-title" style="margin-bottom:10px;">Issue type mix</div>
+      <div id="type-list"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Recently resolved by you</div>
+      <div id="resolved-list"></div>
+    </div>
+    <div class="card full">
+      <div class="card-title">Resolution trend — last 8 weeks</div>
+      <div id="chart-wrap"><canvas id="trend-chart" role="img" aria-label="Tickets resolved per week over the last 8 weeks"></canvas></div>
+    </div>
+    <div class="card full">
+      <div class="card-title">Insights</div>
+      <div id="insights"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">ISD2 Personal Dashboard · Michael Rice · floridapoly.atlassian.net · Jira REST API</div>
+
+<script>
+const JIRA_EMAIL  = "mrice@floridapoly.edu";
+const JIRA_HOST   = "https://floridapoly.atlassian.net";
+const STORAGE_KEY = "isd2_dash_token_v2";
+let API_TOKEN = null;
+let trendChart = null;
+
+function init() {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) { API_TOKEN = saved; hidegate(); loadAll(); }
+}
+
+function submitToken() {
+  const val = document.getElementById('token-input').value.trim();
+  if (!val) { showErr('Please paste your API token.'); return; }
+  API_TOKEN = val;
+  if (document.getElementById('remember-check').checked) localStorage.setItem(STORAGE_KEY, val);
+  hidegate();
+  loadAll();
+}
+
+function hidegate() { document.getElementById('token-gate').style.display = 'none'; }
+function showErr(m) { const e = document.getElementById('gate-error'); e.textContent = m; e.style.display = 'block'; }
+
+function signOut() {
+  localStorage.removeItem(STORAGE_KEY);
+  API_TOKEN = null;
+  document.getElementById('token-input').value = '';
+  document.getElementById('gate-error').style.display = 'none';
+  document.getElementById('token-gate').style.display = 'flex';
+  document.getElementById('main-grid').style.display = 'none';
+  document.getElementById('metrics-row').innerHTML = '';
+}
+
+document.getElementById('token-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitToken(); });
+
+function auth() { return 'Basic ' + btoa(JIRA_EMAIL + ':' + API_TOKEN); }
+function daysOld(d) { return d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : 0; }
+function ageClass(d) { return d > 60 ? 'a-crit' : d > 14 ? 'a-bad' : d > 7 ? 'a-warn' : 'a-ok'; }
+
+function statusPill(s) {
+  s = (s||'').toLowerCase();
+  if (s.includes('progress')) return 'p-prog';
+  if (s.includes('waiting'))  return 'p-wait';
+  if (s.includes('pending'))  return 'p-pend';
+  if (s.includes('info'))     return 'p-info';
+  if (s.includes('cancel'))   return 'p-canc';
+  if (s.includes('escalat'))  return 'p-escl';
+  return 'p-pend';
+}
+
+async function jiraGet(jql, fields, max=100, start=0) {
+  const p = new URLSearchParams({jql, fields: fields.join(','), maxResults: max, startAt: start});
+  const r = await fetch(`${JIRA_HOST}/rest/api/3/search?${p}`, {headers:{'Authorization':auth(),'Accept':'application/json'}});
+  if (r.status === 401) { signOut(); showErr('Token rejected — please check and try again.'); throw new Error('Unauthorized'); }
+  if (!r.ok) throw new Error(`Jira error ${r.status}`);
+  return r.json();
+}
+
+async function jiraAll(jql, fields) {
+  let all=[], start=0, total=Infinity;
+  while (all.length < total && all.length < 300) {
+    const d = await jiraGet(jql, fields, 100, start);
+    total = d.total||0;
+    const batch = d.issues||[];
+    all = all.concat(batch);
+    start += 100;
+    if (!batch.length) break;
+  }
+  return all;
+}
+
+async function loadAll() {
+  document.getElementById('metrics-row').innerHTML = '<div class="state-msg" style="grid-column:1/-1"><span class="spinner"></span>Fetching your Jira queue…</div>';
+  document.getElementById('main-grid').style.display = 'none';
+  document.getElementById('ts').textContent = 'Updating…';
+
+  try {
+    const me = `assignee = "${JIRA_EMAIL}"`;
+    const [openData, resolved] = await Promise.all([
+      jiraGet(`project=ISD2 AND ${me} AND status not in (Resolved,Done,Closed) ORDER BY created DESC`, ['summary','status','priority','issuetype','created'], 100),
+      jiraAll(`project=ISD2 AND ${me} AND status in (Resolved,Done,Closed) ORDER BY resolutiondate DESC`, ['summary','status','issuetype','created','resolutiondate'])
+    ]);
+
+    const open = openData.issues||[];
+    const buckets = {};
+    for (let w=0;w<8;w++) buckets[w]=0;
+    resolved.forEach(i => {
+      const rd = i.fields?.resolutiondate||i.fields?.created;
+      if (!rd) return;
+      const w = Math.floor(daysOld(rd)/7);
+      if (w<8) buckets[w]=(buckets[w]||0)+1;
+    });
+
+    const aged14    = open.filter(i=>daysOld(i.fields?.created)>14);
+    const incidents = open.filter(i=>(i.fields?.issuetype?.name||'').toLowerCase().includes('incident'));
+    const wk0 = buckets[0]||0, wk1 = buckets[1]||0;
+
+    document.getElementById('metrics-row').innerHTML = `
+      <div class="met c-red"><div class="ml">Open tickets</div><div class="mv c-red">${open.length}</div><div class="ms">assigned to you</div></div>
+      <div class="met ${aged14.length>5?'c-red':aged14.length>0?'c-amber':''}"><div class="ml">Aging &gt;14 days</div><div class="mv ${aged14.length>5?'c-red':aged14.length>0?'c-amber':''}">${aged14.length}</div><div class="ms">need attention</div></div>
+      <div class="met ${incidents.length>0?'c-purple':''}"><div class="ml">Active incidents</div><div class="mv ${incidents.length>0?'c-purple':''}">${incidents.length}</div><div class="ms">open incidents</div></div>
+      <div class="met c-green"><div class="ml">Resolved this week</div><div class="mv c-green">${wk0}</div><div class="ms">closed so far</div></div>
+      <div class="met c-blue"><div class="ml">Resolved last week</div><div class="mv c-blue">${wk1}</div><div class="ms">prior 7 days</div></div>`;
+
+    document.getElementById('open-count-label').textContent = open.length;
+    document.getElementById('open-list').innerHTML = open.slice(0,25).map(i => {
+      const age=daysOld(i.fields?.created), stat=i.fields?.status?.name||'—';
+      const sum=(i.fields?.summary||'No summary');
+      const t=sum.length>58?sum.slice(0,58)+'…':sum;
+      const inc=(i.fields?.issuetype?.name||'').toLowerCase().includes('incident')?'<span class="pill p-inc">incident</span>':'';
+      const ap=age>7?`<span class="pill p-aged">${age}d</span>`:'';
+      return `<div class="trow" onclick="window.open('${JIRA_HOST}/browse/${i.key}','_blank')">
+        <div class="tkey">${i.key}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="tsum">${t}${inc}${ap}</div>
+          <div class="tmeta">${age}d old · <span class="pill ${statusPill(stat)}" style="margin-left:0;">${stat}</span></div>
+        </div></div>`;
+    }).join('')||'<div class="state-msg">Queue is clear! 🎉</div>';
+
+    const sorted=[...open].sort((a,b)=>daysOld(b.fields?.created)-daysOld(a.fields?.created)).slice(0,8);
+    const maxAge=sorted.length?Math.max(daysOld(sorted[0].fields?.created),1):1;
+    document.getElementById('aging-list').innerHTML = sorted.map(i=>{
+      const d=daysOld(i.fields?.created), pct=Math.round(d/maxAge*100);
+      const sum=(i.fields?.summary||'').slice(0,36)+((i.fields?.summary||'').length>36?'…':'');
+      const col=d>14?'var(--red)':d>7?'var(--amber)':'var(--green)';
+      return `<div style="margin-bottom:11px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+          <span style="font-size:12px;color:var(--text2);cursor:pointer;" onclick="window.open('${JIRA_HOST}/browse/${i.key}','_blank')">${i.key} <span style="font-size:11px;color:var(--text3);margin-left:6px;">${sum}</span></span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:${col};">${d}d</span>
+        </div>
+        <div class="abar"><div class="afill ${ageClass(d)}" style="width:${pct}%"></div></div>
+      </div>`;
+    }).join('');
+
+    const sc={}, tc={};
+    open.forEach(i=>{
+      const s=i.fields?.status?.name||'Unknown', t=i.fields?.issuetype?.name||'Other';
+      sc[s]=(sc[s]||0)+1; tc[t]=(tc[t]||0)+1;
+    });
+    const SCOL={'Pending':'#f0a830','Waiting for Support':'#378ADD','In Progress':'#4ecfa0','Canceled':'#5a6278','Additional Info Provided':'#b0acf0','Request Additional Info':'#b0acf0','Escalated Tier 3':'#e55a4e'};
+    const sm=Math.max(...Object.values(sc),1);
+    document.getElementById('status-list').innerHTML=Object.entries(sc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>
+      `<div class="srow"><div class="slabel">${n}</div><div class="strack"><div class="sfill" style="width:${Math.round(c/sm*100)}%;background:${SCOL[n]||'var(--blue)'}"></div></div><div class="scount">${c}</div></div>`).join('');
+    const tm=Math.max(...Object.values(tc),1);
+    document.getElementById('type-list').innerHTML=Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c])=>
+      `<div class="srow"><div class="slabel">${n}</div><div class="strack"><div class="sfill" style="width:${Math.round(c/tm*100)}%;background:#1D9E75"></div></div><div class="scount">${c}</div></div>`).join('');
+
+    const recent=resolved.filter(i=>i.fields?.resolutiondate).sort((a,b)=>new Date(b.fields.resolutiondate)-new Date(a.fields.resolutiondate)).slice(0,8);
+    document.getElementById('resolved-list').innerHTML=recent.map(i=>{
+      const da=daysOld(i.fields.resolutiondate), sum=(i.fields?.summary||'').slice(0,50)+((i.fields?.summary||'').length>50?'…':'');
+      const when=da===0?'today':da===1?'1d ago':`${da}d ago`;
+      return `<div class="rrow" onclick="window.open('${JIRA_HOST}/browse/${i.key}','_blank')">
+        <div style="min-width:0;flex:1;"><div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);">${i.key}</div><div style="font-size:12px;color:var(--text2);margin-top:2px;">${sum}</div></div>
+        <div style="font-size:11px;color:var(--text3);white-space:nowrap;padding-left:10px;">${when}</div></div>`;
+    }).join('')||'<div class="state-msg">No recently resolved tickets.</div>';
+
+    const cLabels=Array.from({length:8},(_,i)=>i===0?'this wk':`-${i}w`).reverse();
+    const cData=Array.from({length:8},(_,i)=>buckets[7-i]||0);
+    if(trendChart){trendChart.destroy();trendChart=null;}
+    trendChart=new Chart(document.getElementById('trend-chart').getContext('2d'),{
+      type:'bar',
+      data:{labels:cLabels,datasets:[{label:'Resolved',data:cData,backgroundColor:cData.map((_,i)=>i===7?'#378ADD':'#1a3a5c'),borderRadius:5}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} tickets resolved`},backgroundColor:'#1e2330',titleColor:'#9098b0',bodyColor:'#e8eaf0',borderColor:'rgba(255,255,255,.1)',borderWidth:1}},
+        scales:{x:{grid:{display:false},ticks:{color:'#5a6278',font:{size:11,family:"'IBM Plex Mono',monospace"}}},y:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#5a6278',font:{size:11},stepSize:5,precision:0},beginAtZero:true}}}
+    });
+
+    const ins=[];
+    const veryOld=open.filter(i=>daysOld(i.fields?.created)>60).sort((a,b)=>daysOld(b.fields?.created)-daysOld(a.fields?.created));
+    if(veryOld.length) ins.push(`<div class="insight danger"><b>${veryOld.length} ticket${veryOld.length>1?'s':''} over 60 days old.</b> Oldest: <b>${veryOld[0].key}</b> at ${daysOld(veryOld[0].fields?.created)} days — "${(veryOld[0].fields?.summary||'').slice(0,50)}". Worth a cancel/close audit.</div>`);
+    const canceled=open.filter(i=>(i.fields?.status?.name||'').toLowerCase().includes('cancel'));
+    if(canceled.length) ins.push(`<div class="insight warn"><b>${canceled.length} "Canceled" ticket${canceled.length>1?'s are':' is'} still open.</b> Closing these would reduce your count by ${canceled.length}.</div>`);
+    const newHire=open.filter(i=>/new employ|new hire/i.test(i.fields?.summary||'')).length;
+    if(newHire>3) ins.push(`<div class="insight warn"><b>${newHire} new employee/onboarding tickets open simultaneously.</b> A standard SCCM checklist or Jira template could help you batch these faster.</div>`);
+    if(wk0>=wk1&&wk0>0) ins.push(`<div class="insight ok"><b>Strong pace</b> — ${wk0} closed this week vs. ${wk1} last week. Good data point for your sysadmin case.</div>`);
+    else if(wk1>wk0) ins.push(`<div class="insight"><b>${wk0} resolved this week</b>, down from ${wk1} last week — still time to close the gap.</div>`);
+    const escalated=open.filter(i=>(i.fields?.status?.name||'').toLowerCase().includes('escalat'));
+    if(escalated.length) ins.push(`<div class="insight"><b>${escalated.length} ticket${escalated.length>1?'s':''} at Escalated Tier 3</b> — right in your sysadmin growth zone.</div>`);
+    document.getElementById('insights').innerHTML=ins.join('')||'<div class="insight ok">No major issues flagged — looking good.</div>';
+
+    document.getElementById('main-grid').style.display='grid';
+    document.getElementById('ts').textContent='Updated '+new Date().toLocaleTimeString();
+
+  } catch(err) {
+    if(err.message!=='Unauthorized')
+      document.getElementById('metrics-row').innerHTML=`<div class="state-msg error" style="grid-column:1/-1;">⚠ ${err.message}<br><br><span style="font-size:11px;color:var(--text3);">Check your connection and try refreshing.</span></div>`;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
